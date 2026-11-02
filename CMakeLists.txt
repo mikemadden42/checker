@@ -3,11 +3,15 @@ cmake_minimum_required(VERSION 3.10)
 project(checker CXX)
 
 set (CMAKE_CXX_STANDARD 17)
-if (NOT MSVC)
-  set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# checker uses POSIX sockets, so stop early with a clear message on Windows
+if (WIN32)
+  message(FATAL_ERROR "checker uses POSIX sockets and does not build on Windows")
 endif()
 
 add_executable(checker checker.cc)
+target_compile_options(checker PRIVATE -Wall -Wextra -pedantic)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set_target_properties(checker PROPERTIES
