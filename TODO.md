@@ -4,18 +4,18 @@ Findings from a project review (2026-11-02).
 
 ## Priority
 
-1. Fix CI (no tests registered, so `ctest` fails).
+1. ~~Fix CI (no tests registered, so `ctest` fails).~~ Done.
 2. Add a connect timeout.
 3. Trim input lines and skip blank/comment lines.
-4. Return a meaningful exit code.
+4. ~~Return a meaningful exit code.~~ Done.
 
 ## Bugs / correctness
 
-- [ ] **CI is very likely failing.** `CMakeLists.txt` never calls `enable_testing()` or `add_test()`, so `ctest` has nothing to run. Locally it prints `No test configuration file found!` and exits 1, so the Test step in `.github/workflows/cmake.yml` should fail on every push. Add `enable_testing()` and a real test, or remove the step.
+- [x] **CI is very likely failing.** `CMakeLists.txt` never calls `enable_testing()` or `add_test()`, so `ctest` has nothing to run. Locally it prints `No test configuration file found!` and exits 1, so the Test step in `.github/workflows/cmake.yml` should fail on every push. Add `enable_testing()` and a real test, or remove the step.
 - [ ] **Unreachable hosts hang for a long time.** `connect()` in `checker.cc` has no timeout. A non-routable address (`10.255.255.1`) took 75 seconds on macOS before failing (about 2 minutes on Linux), for each resolved address. Use a non-blocking socket plus `poll()` with a timeout of a few seconds.
 - [ ] **Windows line endings break every domain.** `getline` keeps the `\r`, so a file with CRLF line endings makes lookups fail ("nodename nor servname provided"). Strip trailing whitespace from each line.
 - [ ] **Blank lines are treated as domains.** An empty line still runs both checks. Skip empty lines and support `#` comments.
-- [ ] **The exit code is always 0.** `main` returns 0 even when every check fails. Return non-zero if any check fails so the tool works in scripts and CI.
+- [x] **The exit code is always 0.** `main` returns 0 even when every check fails. Return non-zero if any check fails so the tool works in scripts and CI.
 - [ ] **Connection failures don't say why.** `connectToPort` drops `errno`. Print `strerror(errno)` for the last attempt (refused, timed out, unreachable, etc.).
 
 ## Smaller code issues
