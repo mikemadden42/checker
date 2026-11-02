@@ -1,2 +1,7 @@
+# Domains for checker to look up and test on port 443.
+# One domain per line; blank lines and anything after '#' are ignored.
+
 mail.google.com
-bard.google.com
+gemini.google.com     # formerly bard.google.com
+github.com
+example.com           # IANA-reserved example domain, should always work
