@@ -30,11 +30,11 @@ Findings from a project review (2026-11-02).
 
 ## Build / CI
 
-- [ ] **Compiler flags are overwritten.** `set(CMAKE_CXX_FLAGS ...)` replaces user/toolchain flags. Use `target_compile_options(checker PRIVATE -Wall -Wextra -pedantic)`.
-- [ ] **C++17 isn't enforced.** Add `set(CMAKE_CXX_STANDARD_REQUIRED ON)`.
-- [ ] **The MSVC check is pointless.** The code uses POSIX sockets and won't build on Windows. Remove `if (NOT MSVC)` or document that the tool is POSIX-only.
-- [ ] **The macOS settings are never built in CI.** Add `macos-latest` to a build matrix so the universal-binary config is exercised.
-- [ ] **The checkout action is old.** Bump `actions/checkout@v3` to `@v4` and remove the template boilerplate comments.
+- [x] **Compiler flags are overwritten.** `set(CMAKE_CXX_FLAGS ...)` replaces user/toolchain flags. Use `target_compile_options(checker PRIVATE -Wall -Wextra -pedantic)`.
+- [x] **C++17 isn't enforced.** Add `set(CMAKE_CXX_STANDARD_REQUIRED ON)`.
+- [x] **The MSVC check is pointless.** The code uses POSIX sockets and won't build on Windows. Remove `if (NOT MSVC)` or document that the tool is POSIX-only.
+- [x] **The macOS settings are never built in CI.** Add `macos-latest` to a build matrix so the universal-binary config is exercised.
+- [x] **The checkout action is old.** Bump `actions/checkout@v3` to the latest major (now `@v7`) and remove the template boilerplate comments.
 
 ## Docs
 
