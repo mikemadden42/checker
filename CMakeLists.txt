@@ -28,3 +28,11 @@ set_tests_properties(unresolvable_domain_fails PROPERTIES WILL_FAIL TRUE)
 add_test(NAME missing_domains_file_fails COMMAND checker
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 set_tests_properties(missing_domains_file_fails PROPERTIES WILL_FAIL TRUE)
+
+# 10.255.255.1 is a private address that normally doesn't answer, so connect()
+# hangs until the connect timeout gives up. TIMEOUT makes CTest kill checker
+# (and fail the test) if that timeout ever stops working.
+add_test(NAME unroutable_address_times_out COMMAND checker
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/unroutable)
+set_tests_properties(unroutable_address_times_out PROPERTIES
+                     WILL_FAIL TRUE TIMEOUT 15)
