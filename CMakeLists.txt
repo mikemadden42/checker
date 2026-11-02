@@ -36,3 +36,16 @@ add_test(NAME unroutable_address_times_out COMMAND checker
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/unroutable)
 set_tests_properties(unroutable_address_times_out PROPERTIES
                      WILL_FAIL TRUE TIMEOUT 15)
+
+# CRLF line endings, indentation, blank lines and comments around localhost.
+# localhost always resolves, so only the DNS output is checked; nothing listens
+# on port 443, so the exit code is ignored (PASS_REGULAR_EXPRESSION does that).
+add_test(NAME line_handling COMMAND checker
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/line_handling)
+set_tests_properties(line_handling PROPERTIES
+                     PASS_REGULAR_EXPRESSION "DNS lookup successful"
+                     FAIL_REGULAR_EXPRESSION "DNS lookup failed")
+
+# A file with only comments and blank lines checks nothing and succeeds.
+add_test(NAME no_domains_succeeds COMMAND checker
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/no_domains)

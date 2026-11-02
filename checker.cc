@@ -151,11 +151,25 @@ int main() {
 
     // Read domain names from the file
     while (getline(infile, domain)) {
-        domains.push_back(domain);
+        // Drop comments; '#' can't appear in a hostname
+        domain = domain.substr(0, domain.find('#'));
+
+        // Trim surrounding whitespace, including '\r' from CRLF line endings
+        const char *whitespace = " \t\r\n\f\v";
+        size_t start = domain.find_first_not_of(whitespace);
+        if (start == string::npos) {
+            continue;  // Skip blank lines
+        }
+        size_t end = domain.find_last_not_of(whitespace);
+        domains.push_back(domain.substr(start, end - start + 1));
     }
 
     // Close the file
     infile.close();
+
+    if (domains.empty()) {
+        cerr << "Warning: no domains found in " << filename << endl;
+    }
 
     // Track whether every check passed so the exit code reflects failures
     bool allPassed = true;

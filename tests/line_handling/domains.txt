@@ -1,0 +1,4 @@
+# Windows line endings, indentation and comments
+
+  	localhost  # loopback
+
