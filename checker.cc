@@ -109,6 +109,9 @@ int main() {
     // Close the file
     infile.close();
 
+    // Track whether every check passed so the exit code reflects failures
+    bool allPassed = true;
+
     // Perform DNS lookup for each domain
     for (const auto &d : domains) {
         cout << "Checking DNS for domain: " << d << endl;
@@ -118,6 +121,7 @@ int main() {
         } else {
             // DNS lookup failed
             cout << "DNS lookup failed." << endl;
+            allPassed = false;
         }
 
         // Attempt to connect to port 443 for the domain
@@ -128,10 +132,11 @@ int main() {
         } else {
             // Connection failed
             cout << "Connection to port 443 failed for " << d << endl;
+            allPassed = false;
         }
 
         cout << endl;  // Separate each domain's results
     }
 
-    return 0;
+    return allPassed ? 0 : 1;
 }

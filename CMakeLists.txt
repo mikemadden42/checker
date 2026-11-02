@@ -14,3 +14,17 @@ if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
         OSX_ARCHITECTURES "x86_64;arm64"
     )
 endif()
+
+enable_testing()
+
+# checker reads domains.txt from its working directory. The .invalid TLD is
+# reserved (RFC 2606) and never resolves, so this test needs no network access
+# and checker must exit non-zero.
+add_test(NAME unresolvable_domain_fails COMMAND checker
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/unresolvable)
+set_tests_properties(unresolvable_domain_fails PROPERTIES WILL_FAIL TRUE)
+
+# A missing domains.txt must also be reported as a failure.
+add_test(NAME missing_domains_file_fails COMMAND checker
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+set_tests_properties(missing_domains_file_fails PROPERTIES WILL_FAIL TRUE)
