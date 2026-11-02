@@ -1,8 +1,11 @@
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -10,6 +13,9 @@
 #include <vector>
 
 using namespace std;
+
+// How long to wait for each connection attempt before giving up
+const int connectTimeoutMs = 5000;
 
 bool performDNSLookup(const string &domain) {
     struct addrinfo hints {
@@ -49,6 +55,44 @@ bool performDNSLookup(const string &domain) {
     return true;
 }
 
+// Connect sockfd to addr, waiting at most connectTimeoutMs.
+// Returns 0 on success, or an errno value describing the failure.
+int connectWithTimeout(int sockfd, const struct sockaddr *addr,
+                       socklen_t addrlen) {
+    // Use a non-blocking socket so connect() returns immediately
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags == -1 || fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        return errno;
+    }
+
+    if (connect(sockfd, addr, addrlen) == 0) {
+        return 0;
+    }
+    if (errno != EINPROGRESS) {
+        return errno;
+    }
+
+    // Wait for the socket to become writable, which means connect() finished
+    struct pollfd pfd {};
+    pfd.fd = sockfd;
+    pfd.events = POLLOUT;
+    int ready = poll(&pfd, 1, connectTimeoutMs);
+    if (ready == -1) {
+        return errno;
+    }
+    if (ready == 0) {
+        return ETIMEDOUT;
+    }
+
+    // connect() finished; SO_ERROR says whether it succeeded
+    int error = 0;
+    socklen_t len = sizeof error;
+    if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &error, &len) == -1) {
+        return errno;
+    }
+    return error;
+}
+
 bool connectToPort(const string &domain, int port) {
     // Get address info for the domain
     struct addrinfo hints {
@@ -68,23 +112,27 @@ bool connectToPort(const string &domain, int port) {
     }
 
     // Attempt to connect to the specified port
+    int lastError = 0;
     for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
         int sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (sockfd == -1) {
+            lastError = errno;
             continue;
         }
 
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) != -1) {
+        lastError = connectWithTimeout(sockfd, p->ai_addr, p->ai_addrlen);
+        close(sockfd);
+
+        if (lastError == 0) {
             // Connection successful
-            close(sockfd);
             freeaddrinfo(res);
             return true;
         }
-
-        close(sockfd);
     }
 
     freeaddrinfo(res);
+    cerr << "Error connecting to " << domain << " on port " << port << ": "
+         << strerror(lastError) << endl;
     return false;
 }
 
