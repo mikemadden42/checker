@@ -5,7 +5,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -126,8 +128,50 @@ bool connectToPort(const string &domain, int port,
     return false;
 }
 
-int main() {
-    const string filename = "domains.txt";
+void printUsage(const char *program) {
+    cerr << "Usage: " << program << " [-p PORT] [FILE]\n"
+         << "  FILE     domains to check, one per line (default: domains.txt)\n"
+         << "  -p PORT  TCP port to test, 1-65535 (default: 443)" << endl;
+}
+
+int main(int argc, char *argv[]) {
+    int port = 443;
+
+    // Parse options; usage errors exit with 2 so scripts can tell them apart
+    // from failed checks
+    int opt;
+    while ((opt = getopt(argc, argv, "hp:")) != -1) {
+        switch (opt) {
+            case 'h':
+                printUsage(argv[0]);
+                return 0;
+            case 'p': {
+                // Accept digits only; strtol alone would allow " 80" or "+80"
+                char *end;
+                errno = 0;
+                long value = strtol(optarg, &end, 10);
+                if (!isdigit(static_cast<unsigned char>(optarg[0])) ||
+                    errno != 0 || *end != '\0' || value < 1 ||
+                    value > 65535) {
+                    cerr << "Invalid port: " << optarg << endl;
+                    printUsage(argv[0]);
+                    return 2;
+                }
+                port = static_cast<int>(value);
+                break;
+            }
+            default:  // getopt has already printed the problem
+                printUsage(argv[0]);
+                return 2;
+        }
+    }
+    if (argc - optind > 1) {
+        cerr << "Too many arguments" << endl;
+        printUsage(argv[0]);
+        return 2;
+    }
+
+    const string filename = optind < argc ? argv[optind] : "domains.txt";
     ifstream infile(filename);
 
     if (!infile.is_open()) {
@@ -163,7 +207,6 @@ int main() {
 
     // Track whether every check passed so the exit code reflects failures
     bool allPassed = true;
-    const int port = 443;
 
     // Perform DNS lookup and a port check for each domain
     for (const auto &d : domains) {

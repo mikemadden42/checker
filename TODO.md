@@ -25,7 +25,7 @@ Findings from a project review (2026-11-02).
 - [x] **`inet_ntop` isn't checked.** Handle its return value.
 - [x] **Redundant zeroing.** `struct addrinfo hints {}` already zero-initialises; drop the `memset` calls.
 - [x] **Missing include.** `snprintf` needs `<cstdio>`. `std::to_string(port)` would be simpler.
-- [ ] **Hardcoded inputs.** Accept the domains file (and optionally the port) via `argv` instead of hardcoding `domains.txt` and 443.
+- [x] **Hardcoded inputs.** Accept the domains file (and optionally the port) via `argv` instead of hardcoding `domains.txt` and 443.
 - [ ] **Noisy output.** Consider one line per domain, e.g. `example.com  93.184.215.14, 2606:…  443:OK`.
 
 ## Build / CI
