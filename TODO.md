@@ -20,11 +20,11 @@ Findings from a project review (2026-11-02).
 
 ## Smaller code issues
 
-- [ ] **Each domain is resolved twice.** `performDNSLookup` and `connectToPort` both call `getaddrinfo`. Resolve once and pass the results to the connect step.
-- [ ] **Address family is assumed.** The `else` branch in `performDNSLookup` treats any non-IPv4 address as IPv6. Use `else if (p->ai_family == AF_INET6)` and skip anything else.
-- [ ] **`inet_ntop` isn't checked.** Handle its return value.
-- [ ] **Redundant zeroing.** `struct addrinfo hints {}` already zero-initialises; drop the `memset` calls.
-- [ ] **Missing include.** `snprintf` needs `<cstdio>`. `std::to_string(port)` would be simpler.
+- [x] **Each domain is resolved twice.** `performDNSLookup` and `connectToPort` both call `getaddrinfo`. Resolve once and pass the results to the connect step.
+- [x] **Address family is assumed.** The `else` branch in `performDNSLookup` treats any non-IPv4 address as IPv6. Use `else if (p->ai_family == AF_INET6)` and skip anything else.
+- [x] **`inet_ntop` isn't checked.** Handle its return value.
+- [x] **Redundant zeroing.** `struct addrinfo hints {}` already zero-initialises; drop the `memset` calls.
+- [x] **Missing include.** `snprintf` needs `<cstdio>`. `std::to_string(port)` would be simpler.
 - [ ] **Hardcoded inputs.** Accept the domains file (and optionally the port) via `argv` instead of hardcoding `domains.txt` and 443.
 - [ ] **Noisy output.** Consider one line per domain, e.g. `example.com  93.184.215.14, 2606:…  443:OK`.
 

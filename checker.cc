@@ -9,6 +9,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,42 +18,49 @@ using namespace std;
 // How long to wait for each connection attempt before giving up
 const int connectTimeoutMs = 5000;
 
-bool performDNSLookup(const string &domain) {
-    struct addrinfo hints {
-    }, *res;
-    memset(&hints, 0, sizeof hints);
+// Owns a getaddrinfo() result and frees it automatically
+using AddrInfoPtr = unique_ptr<struct addrinfo, decltype(&freeaddrinfo)>;
+
+// Resolve domain for TCP connections to port. Prints the error and returns an
+// empty pointer if the lookup fails.
+AddrInfoPtr resolve(const string &domain, int port) {
+    struct addrinfo hints {};
     hints.ai_family = AF_UNSPEC;      // IPv4 or IPv6, we don't care
     hints.ai_socktype = SOCK_STREAM;  // Use TCP stream sockets
+    hints.ai_flags = AI_NUMERICSERV;  // The port is always a number
 
-    int status = getaddrinfo(domain.c_str(), nullptr, &hints, &res);
+    struct addrinfo *res = nullptr;
+    int status =
+        getaddrinfo(domain.c_str(), to_string(port).c_str(), &hints, &res);
     if (status != 0) {
         cerr << "DNS lookup failed for domain: " << domain << " - "
              << gai_strerror(status) << endl;
-        return false;
+        return AddrInfoPtr(nullptr, freeaddrinfo);
     }
+    return AddrInfoPtr(res, freeaddrinfo);
+}
 
-    // Print out IP addresses if DNS lookup is successful
+void printAddresses(const string &domain, const struct addrinfo *res) {
     cout << "IP addresses for domain " << domain << ":" << endl;
-    for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
-        void *addr;
-        string ip;
-
-        if (p->ai_family == AF_INET) {  // IPv4
-            auto *ipv4 = (struct sockaddr_in *)p->ai_addr;
-            addr = &(ipv4->sin_addr);
-        } else {  // IPv6
-            auto *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-            addr = &(ipv6->sin6_addr);
+    for (const struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
+        const void *addr;
+        if (p->ai_family == AF_INET) {
+            addr = &((const struct sockaddr_in *)p->ai_addr)->sin_addr;
+        } else if (p->ai_family == AF_INET6) {
+            addr = &((const struct sockaddr_in6 *)p->ai_addr)->sin6_addr;
+        } else {
+            continue;  // Not an IP address
         }
 
         // Convert the IP to a string and print it
         char ipstr[INET6_ADDRSTRLEN];
-        inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
+        if (inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr) == nullptr) {
+            cerr << "Could not format an address for " << domain << ": "
+                 << strerror(errno) << endl;
+            continue;
+        }
         cout << "Forward DNS for " << domain << ": " << ipstr << endl;
     }
-
-    freeaddrinfo(res);
-    return true;
 }
 
 // Connect sockfd to addr, waiting at most connectTimeoutMs.
@@ -93,27 +101,11 @@ int connectWithTimeout(int sockfd, const struct sockaddr *addr,
     return error;
 }
 
-bool connectToPort(const string &domain, int port) {
-    // Get address info for the domain
-    struct addrinfo hints {
-    }, *res;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    char portStr[6];  // Port number cannot exceed 5 digits
-    snprintf(portStr, sizeof(portStr), "%d", port);
-
-    int status = getaddrinfo(domain.c_str(), portStr, &hints, &res);
-    if (status != 0) {
-        cerr << "Error getting address info for " << domain << ": "
-             << gai_strerror(status) << endl;
-        return false;
-    }
-
+bool connectToPort(const string &domain, int port,
+                   const struct addrinfo *res) {
     // Attempt to connect to the specified port
     int lastError = 0;
-    for (struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
+    for (const struct addrinfo *p = res; p != nullptr; p = p->ai_next) {
         int sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (sockfd == -1) {
             lastError = errno;
@@ -125,12 +117,10 @@ bool connectToPort(const string &domain, int port) {
 
         if (lastError == 0) {
             // Connection successful
-            freeaddrinfo(res);
             return true;
         }
     }
 
-    freeaddrinfo(res);
     cerr << "Error connecting to " << domain << " on port " << port << ": "
          << strerror(lastError) << endl;
     return false;
@@ -173,27 +163,34 @@ int main() {
 
     // Track whether every check passed so the exit code reflects failures
     bool allPassed = true;
+    const int port = 443;
 
-    // Perform DNS lookup for each domain
+    // Perform DNS lookup and a port check for each domain
     for (const auto &d : domains) {
         cout << "Checking DNS for domain: " << d << endl;
-        if (performDNSLookup(d)) {
-            // DNS lookup successful
-            cout << "DNS lookup successful." << endl;
-        } else {
-            // DNS lookup failed
+        AddrInfoPtr res = resolve(d, port);
+        if (!res) {
+            // DNS lookup failed, so there is nothing to connect to
             cout << "DNS lookup failed." << endl;
+            cout << "Skipping port " << port << " check for " << d << endl;
+            cout << endl;
             allPassed = false;
+            continue;
         }
+        printAddresses(d, res.get());
+        cout << "DNS lookup successful." << endl;
 
-        // Attempt to connect to port 443 for the domain
-        cout << "Checking connection to port 443 for domain: " << d << endl;
-        if (connectToPort(d, 443)) {
+        // Attempt to connect to the port using the addresses already resolved
+        cout << "Checking connection to port " << port
+             << " for domain: " << d << endl;
+        if (connectToPort(d, port, res.get())) {
             // Connection successful
-            cout << "Connection to port 443 successful for " << d << endl;
+            cout << "Connection to port " << port << " successful for " << d
+                 << endl;
         } else {
             // Connection failed
-            cout << "Connection to port 443 failed for " << d << endl;
+            cout << "Connection to port " << port << " failed for " << d
+                 << endl;
             allPassed = false;
         }
 
