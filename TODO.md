@@ -39,4 +39,4 @@ Findings from a project review (2026-11-02).
 ## Docs
 
 - [ ] **The README is two lines.** Add build steps, usage, the `domains.txt` format and sample output.
-- [ ] **`domains.txt` likely contains a stale domain.** Check whether `bard.google.com` is still a good example.
+- [x] **`domains.txt` likely contains a stale domain.** `bard.google.com` now redirects to `gemini.google.com`; replaced it and added commented examples.
