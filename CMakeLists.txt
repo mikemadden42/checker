@@ -42,13 +42,26 @@ add_test(NAME unroutable_address_times_out
 set_tests_properties(unroutable_address_times_out PROPERTIES
                      WILL_FAIL TRUE TIMEOUT 15)
 
+# The one-line output reports the DNS failure and its reason.
+add_test(NAME unresolvable_domain_reported
+         COMMAND checker ${TESTS_DIR}/unresolvable/domains.txt)
+set_tests_properties(unresolvable_domain_reported PROPERTIES
+                     PASS_REGULAR_EXPRESSION "checker-test.invalid  DNS FAILED \\(")
+
 # CRLF line endings, indentation, blank lines and comments around localhost.
 # localhost always resolves, so only the DNS output is checked; nothing listens
 # on port 443, so the exit code is ignored (PASS_REGULAR_EXPRESSION does that).
 add_test(NAME line_handling
          COMMAND checker ${TESTS_DIR}/line_handling/domains.txt)
 set_tests_properties(line_handling PROPERTIES
-                     PASS_REGULAR_EXPRESSION "DNS lookup successful"
+                     PASS_REGULAR_EXPRESSION "^localhost  [0-9a-f:.]+"
+                     FAIL_REGULAR_EXPRESSION "DNS FAILED")
+
+# -v keeps the detailed step-by-step output.
+add_test(NAME verbose_output
+         COMMAND checker -v ${TESTS_DIR}/line_handling/domains.txt)
+set_tests_properties(verbose_output PROPERTIES
+                     PASS_REGULAR_EXPRESSION "Forward DNS for localhost: .*DNS lookup successful"
                      FAIL_REGULAR_EXPRESSION "DNS lookup failed")
 
 # With no FILE argument, checker reads domains.txt from its working directory.
@@ -61,7 +74,7 @@ add_test(NAME no_domains_succeeds COMMAND checker
 add_test(NAME port_option
          COMMAND checker -p 1 ${TESTS_DIR}/line_handling/domains.txt)
 set_tests_properties(port_option PROPERTIES
-                     PASS_REGULAR_EXPRESSION "port 1 ")
+                     PASS_REGULAR_EXPRESSION "  1:FAILED \\(")
 
 # Bad ports, unknown options and extra arguments are usage errors.
 add_test(NAME invalid_port_rejected COMMAND checker -p 70000)
